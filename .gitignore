@@ -1,10 +1,33 @@
+# --- Python ---
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# --- Environment & secrets ---
 .env
+.env.*
+
+# --- IDE & OS ---
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Research / dev artifacts ---
 experiments/
-models/*.pth
+notebooks/
 raw_data/
 processed/
+datasets/
+
+# --- Model weights (large binaries) ---
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+
+# --- External toolbox ---
 external/rPPG-Toolbox-main/

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: heart-rate-rppg
+    runtime: docker
+    # Build from the Dockerfile at the repo root
+    dockerfilePath: ./Dockerfile
+    # Render automatically sets PORT; our Dockerfile reads it via ${PORT}
+    # Free plan: Oregon (US West) — change to "frankfurt" for EU
+    region: oregon
+    plan: free          # upgrade to "starter" or higher for always-on
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONPATH
+        value: /app
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Render injects PORT automatically; listing it here is informational only
+      # - key: PORT
+      #   value: "10000"

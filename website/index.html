@@ -123,7 +123,8 @@
             startBtn.style.display = 'none';
             statusDisplay.innerText = "Connecting to Analysis Engine...";
             
-            ws = new WebSocket(`ws://${location.host}/ws`);
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
             
             ws.onopen = () => {
                 statusDisplay.innerText = "Connected. Initializing buffers...";
