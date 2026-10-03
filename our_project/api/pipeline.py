@@ -84,7 +84,7 @@ class RealTimePipeline:
         results, landmarks_list = self.face_detector.detect_landmarks(frame_bgr)
         
         if not landmarks_list:
-            return None, 0.0, "No face detected", 0.0
+            return None, 0.0, "No human detected", 0.0
             
         landmarks = landmarks_list[0]
         
