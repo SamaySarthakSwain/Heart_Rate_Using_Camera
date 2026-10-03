@@ -101,14 +101,16 @@ def extract_rppg(r_trace, g_trace, b_trace, method="chrom", fps=30.0):
 
 def estimate_hr(signal_data, fps=30.0):
     """
-    Estimates heart rate in BPM using FFT.
+    Estimates heart rate in BPM using FFT with Harmonic Rejection.
     """
     if len(signal_data) < 30:
         return 0.0
         
     n = len(signal_data)
+    # Apply Hamming window to reduce spectral leakage
+    windowed = signal_data * np.hamming(n)
     freqs = np.fft.rfftfreq(n, 1.0 / fps)
-    fft = np.fft.rfft(signal_data)
+    fft = np.fft.rfft(windowed)
     power = np.abs(fft) ** 2
     
     # 0.7 to 3.0 Hz (42 to 180 BPM)
@@ -124,6 +126,23 @@ def estimate_hr(signal_data, fps=30.0):
         
     peak_idx = np.argmax(hr_power)
     peak_freq = hr_freqs[peak_idx]
+    max_p = hr_power[peak_idx]
+    
+    # Harmonic Rejection: If peak is > 90 BPM (1.5 Hz), check for fundamental at half freq
+    if peak_freq > 1.5:
+        fund_target = peak_freq / 2.0
+        if fund_target >= 0.7:
+            # Search in a +/- 0.15 Hz window around half the peak
+            sub_mask = (hr_freqs >= fund_target - 0.15) & (hr_freqs <= fund_target + 0.15)
+            if np.any(sub_mask):
+                sub_freqs = hr_freqs[sub_mask]
+                sub_powers = hr_power[sub_mask]
+                sub_max_idx = np.argmax(sub_powers)
+                sub_max_p = sub_powers[sub_max_idx]
+                
+                # If the sub-peak is at least 30% of the main peak's power, assume it's the fundamental
+                if sub_max_p >= 0.3 * max_p:
+                    peak_freq = sub_freqs[sub_max_idx]
     
     return peak_freq * 60.0
 
@@ -136,8 +155,9 @@ def calculate_sqi(signal_data, fps=30.0):
         return 0.0
         
     n = len(signal_data)
+    windowed = signal_data * np.hamming(n)
     freqs = np.fft.rfftfreq(n, 1.0 / fps)
-    fft = np.fft.rfft(signal_data)
+    fft = np.fft.rfft(windowed)
     power = np.abs(fft) ** 2
     
     hr_range = (freqs >= 0.7) & (freqs <= 3.0)
