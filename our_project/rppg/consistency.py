@@ -60,9 +60,7 @@ class PhysiologicalConsistencyChecker:
         self.last_valid_time = current_time
 
         if sqi < 0.4:
-            accuracy_loss = int((1.0 - sqi) * 100)
-            reason = f"Poor Lighting or Low Camera Quality. Output accuracy reduced by ~{accuracy_loss}%."
-            return False, smoothed_hr, reason
+            return False, smoothed_hr, "No clear face detected (Low signal quality)"
 
         if current_hr < self.min_hr or current_hr > self.max_hr:
             return False, smoothed_hr, "Out of absolute bounds"

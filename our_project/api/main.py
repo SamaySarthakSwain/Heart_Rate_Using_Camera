@@ -93,6 +93,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 is_valid, final_hr, reason = consistency_checker.validate(
                     hr, current_time, sqi
                 )
+                if not is_valid:
+                    final_hr = None
             else:
                 final_hr = None
                 reason = status
