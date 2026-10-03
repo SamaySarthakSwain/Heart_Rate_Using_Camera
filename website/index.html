@@ -342,6 +342,26 @@
                         facingMode: { ideal: facingMode }
                     } 
                 });
+                
+                // Lock Camera Constraints (Auto-exposure ruins rPPG signals)
+                const track = stream.getVideoTracks()[0];
+                if (track && typeof track.getCapabilities === 'function') {
+                    try {
+                        const capabilities = track.getCapabilities();
+                        const constraints = {};
+                        if (capabilities.whiteBalanceMode) constraints.whiteBalanceMode = 'manual';
+                        if (capabilities.exposureMode) constraints.exposureMode = 'manual';
+                        if (capabilities.focusMode) constraints.focusMode = 'manual';
+                        
+                        if (Object.keys(constraints).length > 0) {
+                            await track.applyConstraints({ advanced: [constraints] });
+                            console.log("Locked camera constraints for rPPG stability.");
+                        }
+                    } catch (e) {
+                        console.warn("Browser does not support advanced manual camera constraints.", e);
+                    }
+                }
+
                 video.srcObject = stream;
             } catch (err) {
                 statusDisplay.innerText = "Error accessing camera: " + err.message;

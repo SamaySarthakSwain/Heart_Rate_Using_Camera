@@ -48,7 +48,8 @@ class AdaptiveROIFusion:
                 weight = base_weight * (1.0 - (motion_score * 0.5))
             else:
                 # Cheeks highly penalized by motion (talking artifact)
-                weight = base_weight * (1.0 - motion_score)
+                # Doubled the penalty (2.0) to aggressively reject talking/smiling
+                weight = base_weight * (1.0 - (motion_score * 2.0))
                 
             # Ensure weight doesn't drop below a tiny epsilon to prevent div by zero
             weight = max(0.01, weight)

@@ -1,9 +1,10 @@
 import numpy as np
 from scipy import signal
+from scipy.interpolate import CubicSpline
 from collections import deque
 
 class BandpassFilter:
-    def __init__(self, lowcut=0.7, highcut=3.0, fps=30.0, order=3):
+    def __init__(self, lowcut=0.5, highcut=4.0, fps=30.0, order=3):
         self.lowcut = lowcut
         self.highcut = highcut
         self.fps = fps
@@ -80,7 +81,7 @@ class POSMethod:
 
 # Unified Interface implementation requested in Step 6 / 9
 
-def extract_rppg(r_trace, g_trace, b_trace, method="chrom", fps=30.0):
+def extract_rppg(r_trace, g_trace, b_trace, method="chrom", fps=30.0, timestamps=None):
     """
     Extracts the rPPG signal using the specified method.
     Replaces extract_rppg(video, method) logic by decoupling ROI extraction.
@@ -99,6 +100,23 @@ def extract_rppg(r_trace, g_trace, b_trace, method="chrom", fps=30.0):
     
     if len(raw_pulse) == 0:
         return np.array([])
+        
+    # Correct network jitter using Cubic Spline Interpolation
+    if timestamps is not None and len(timestamps) == len(raw_pulse):
+        t = np.array(timestamps)
+        # Ensure timestamps are strictly increasing
+        _, unique_indices = np.unique(t, return_index=True)
+        t = t[np.sort(unique_indices)]
+        raw_pulse = raw_pulse[np.sort(unique_indices)]
+        
+        if len(t) > 3:
+            t = t - t[0]
+            duration = t[-1]
+            num_ideal_frames = int(duration * fps)
+            if num_ideal_frames > 3:
+                t_ideal = np.linspace(0, duration, num_ideal_frames)
+                cs = CubicSpline(t, raw_pulse)
+                raw_pulse = cs(t_ideal)
         
     # Standard preprocessing pipeline
     detrended = detrend_signal(raw_pulse)

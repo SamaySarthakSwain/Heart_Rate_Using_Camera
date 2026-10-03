@@ -17,11 +17,12 @@ class RealTimePipeline:
     Combines Camera -> Face Detection -> Multi-ROI Extraction -> 
     Adaptive Fusion -> rPPG Extraction (Classical or Deep Learning) -> HR Estimation
     """
-    def __init__(self, method="chrom", buffer_size=128, fps=30.0):
+    def __init__(self, method="chrom", buffer_size=300, min_frames=150, fps=30.0):
         self.method = method
         self.fps = fps
         # PhysNet specifically expects T=128 for its temporal convolutions
         self.buffer_size = 128 if method == "physnet" else buffer_size
+        self.min_frames = 128 if method == "physnet" else min_frames
         
         # Initialize modules
         self.face_detector = FaceDetector()
@@ -84,7 +85,7 @@ class RealTimePipeline:
         results, landmarks_list = self.face_detector.detect_landmarks(frame_bgr)
         
         if not landmarks_list:
-            return None, 0.0, "No human detected", 0.0
+            return None, 0.0, "No human detected", 0.0, 0.0, 1.0
             
         landmarks = landmarks_list[0]
         
@@ -107,17 +108,20 @@ class RealTimePipeline:
                 self.raw_face_buffer.append(face_crop)
         
         # 5. HR Estimation (only if buffer is sufficiently full)
-        if len(self.g_buffer) >= self.buffer_size:
+        if len(self.g_buffer) >= self.min_frames:
             
             if self.method in ["green", "chrom", "pos"]:
                 # Classical rPPG
                 rppg_wave = extract_rppg(self.r_buffer, self.g_buffer, self.b_buffer, 
-                                         method=self.method, fps=self.fps)
+                                         method=self.method, fps=self.fps, timestamps=list(self.timestamps))
                                          
                 if len(rppg_wave) > 0:
                     hr = estimate_hr(rppg_wave, fps=self.fps)
                     sqi = calculate_sqi(rppg_wave, fps=self.fps)
-                    return hr, sqi, f"Success ({self.method.upper()})", float(rppg_wave[-1])
+                    
+                    motion = getattr(self.fusion, 'last_motion_score', 0.0)
+                    illum = getattr(self.fusion, 'last_illum_score', 1.0)
+                    return hr, sqi, f"Success ({self.method.upper()})", float(rppg_wave[-1]), motion, illum
                     
             elif self.method == "physnet" and self.dl_model is not None:
                 # Deep Learning Inference
@@ -136,9 +140,11 @@ class RealTimePipeline:
                         # Use the same evaluation metrics
                         hr = estimate_hr(rppg_wave, fps=self.fps)
                         sqi = calculate_sqi(rppg_wave, fps=self.fps)
-                        return hr, sqi, "Success (PhysNet)", float(rppg_wave[-1])
+                        motion = getattr(self.fusion, 'last_motion_score', 0.0)
+                        illum = getattr(self.fusion, 'last_illum_score', 1.0)
+                        return hr, sqi, "Success (PhysNet)", float(rppg_wave[-1]), motion, illum
                 
-        return None, 0.0, "Buffering...", 0.0
+        return None, 0.0, "Buffering...", 0.0, 0.0, 1.0
 
 if __name__ == "__main__":
     # Smoke test of the entire pipeline WITH PhysNet
