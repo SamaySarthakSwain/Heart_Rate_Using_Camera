@@ -5,11 +5,6 @@ FROM python:3.10-slim AS deps
 
 WORKDIR /install
 
-# System libraries required by OpenCV and MediaPipe
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1-mesa-glx \
-        libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
@@ -23,11 +18,6 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Re-install only the runtime OS libraries (no build-time cruft)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1-mesa-glx \
-        libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy pre-built Python packages from the deps stage
 COPY --from=deps /install/pkg /usr/local
