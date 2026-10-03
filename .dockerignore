@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
+.vscode/
+experiments/
+models/*.pth
+raw_data/
+processed/

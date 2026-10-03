@@ -1,0 +1,34 @@
+# rPPG Heart Rate — pinned runtime dependencies
+# Exact, mutually-aligned pins for reproducible installs. Python 3.10 / 3.11.
+# numpy is anchored at the last 1.x for maximum compatibility with MediaPipe + torch.
+# Docker (Phase 5) owns the production runtime environment.
+
+# --- Core numerics ---
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.3
+
+# --- Computer vision ---
+opencv-python==4.10.0.84
+mediapipe==0.10.14
+
+# --- Deep learning (PhysNet training / inference) ---
+torch==2.4.1
+torchvision==0.19.1
+
+# --- ONNX export / runtime ---
+onnx==1.16.2
+onnxruntime==1.19.2
+
+# --- Web app ---
+fastapi==0.115.6
+uvicorn==0.32.1
+# uvicorn's base install has NO WebSocket protocol support on its own (confirmed via
+# real-server testing during Phase 3: /ws/process and /ws/webcam both 404 without
+# this). Required, not optional, for the app's core video/webcam processing.
+websockets==15.0.1
+python-multipart==0.0.20
+jinja2==3.1.4
+
+# --- Visualization ---
+matplotlib==3.9.2

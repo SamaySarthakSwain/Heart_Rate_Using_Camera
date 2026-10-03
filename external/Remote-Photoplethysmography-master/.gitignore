@@ -1,0 +1,6 @@
+__pycache__/
+*.mp4
+pytest_cache/
+test_video_*.py
+*.task
+test_video_pipeline.py

@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+experiments/
+models/*.pth
+raw_data/
+processed/
+external/rPPG-Toolbox-main/

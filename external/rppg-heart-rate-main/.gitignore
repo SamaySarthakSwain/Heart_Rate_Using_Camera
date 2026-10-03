@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+data/videos/*
+!data/videos/.gitkeep
+models/*.pth
+models/*.onnx
+*.mp4
+*.avi
+*.mov
+*.webm
+
+# User-uploaded videos (runtime data, never committed)
+src/app/uploads/
+
+# Datasets (not included in repo)
+datasets/
+docs/
+
+# Internal planning notes (local only, not part of the public repo)
+specs/
+phases/
+
+# Generated evaluation/training artifacts (plots, CSVs, checkpoints) — reproducible
+# from scripts/, not committed
+results/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Generated files
+physnet_results.png
+demo_heart_rate.png

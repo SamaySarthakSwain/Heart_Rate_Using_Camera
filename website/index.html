@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI rPPG Research Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; display: flex; flex-direction: column; align-items: center; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .dashboard-row { display: flex; justify-content: space-around; width: 100%; }
+        .metric { font-size: 48px; font-weight: bold; color: #00e676; }
+        .metric.poor { color: #ff3d00; }
+        h3 { margin-top: 0; color: #aaa; }
+        video { border-radius: 8px; width: 640px; height: 480px; transform: scaleX(-1); background: #000; }
+        canvas { display: none; }
+        .status { margin-top: 10px; font-style: italic; color: #64b5f6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Device-Agnostic AI rPPG Monitoring</h1>
+        
+        <div class="card">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" width="640" height="480"></canvas>
+            <button id="startBtn" style="padding: 10px 20px; margin-top: 20px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #2196f3; color: white;">Start Monitoring</button>
+        </div>
+
+        <div class="dashboard-row">
+            <div class="card">
+                <h3>Heart Rate (BPM)</h3>
+                <div id="hr-display" class="metric">--</div>
+            </div>
+            <div class="card">
+                <h3>Signal Quality (SQI)</h3>
+                <div id="sqi-display" class="metric">0.00</div>
+            </div>
+        </div>
+        
+        <div class="card" style="margin-top: 20px;">
+            <h3>rPPG Waveform</h3>
+            <canvas id="waveformCanvas" width="900" height="150" style="background: #000; border-radius: 8px; border: 1px solid #333; display: block;"></canvas>
+        </div>
+        
+        <div id="status-display" class="status">Waiting to start...</div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const hrDisplay = document.getElementById('hr-display');
+        const sqiDisplay = document.getElementById('sqi-display');
+        const statusDisplay = document.getElementById('status-display');
+        const startBtn = document.getElementById('startBtn');
+        
+        const waveCanvas = document.getElementById('waveformCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+        let waveData = new Array(300).fill(0); // Holds the last 300 SQI or HR changes to visualize a mock pulse since we don't stream the full 30FPS wave over websocket to save bandwidth
+        
+        let ws;
+        let isRunning = false;
+        
+        function drawWaveform(newValue) {
+            // Push new value, shift old
+            waveData.push(newValue);
+            waveData.shift();
+            
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+            waveCtx.beginPath();
+            waveCtx.strokeStyle = '#00e676';
+            waveCtx.lineWidth = 2;
+            
+            const sliceWidth = waveCanvas.width / waveData.length;
+            let x = 0;
+            
+            for(let i = 0; i < waveData.length; i++) {
+                // Normalize for visualization (assuming typical values hover around 0 or small variations)
+                const y = waveCanvas.height / 2 - (waveData[i] * 50); 
+                
+                if(i === 0) {
+                    waveCtx.moveTo(x, y);
+                } else {
+                    waveCtx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+            waveCtx.stroke();
+        }
+
+        // Draw initial flatline
+        drawWaveform(0);
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480, frameRate: { ideal: 30 } } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                statusDisplay.innerText = "Error accessing camera: " + err.message;
+            }
+        }
+
+        function sendFrame() {
+            if (!isRunning) return;
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64Data = canvas.toDataURL('image/jpeg', 0.6);
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(base64Data);
+            }
+            
+            // Limit to ~30 FPS
+            setTimeout(sendFrame, 33);
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.style.display = 'none';
+            statusDisplay.innerText = "Connecting to Analysis Engine...";
+            
+            ws = new WebSocket(`ws://${location.host}/ws`);
+            
+            ws.onopen = () => {
+                statusDisplay.innerText = "Connected. Initializing buffers...";
+                startCamera().then(() => {
+                    setTimeout(sendFrame, 1000); // Give camera time to warm up
+                });
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                hrDisplay.innerText = data.hr;
+                sqiDisplay.innerText = data.sqi;
+                statusDisplay.innerText = "Status: " + data.status;
+                
+                if (data.wave_value !== undefined) {
+                    drawWaveform(data.wave_value);
+                }
+                
+                if (parseFloat(data.sqi) < 0.4) {
+                    hrDisplay.classList.add('poor');
+                } else {
+                    hrDisplay.classList.remove('poor');
+                }
+            };
+            
+            ws.onclose = () => {
+                isRunning = false;
+                statusDisplay.innerText = "Disconnected.";
+                startBtn.style.display = 'block';
+            };
+        });
+    </script>
+</body>
+</html>
