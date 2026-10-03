@@ -25,9 +25,14 @@ class PhysiologicalConsistencyChecker:
         self.last_valid_hr = None
         self.last_valid_time = None
         
-        # Stability gating & EMA smoothing from Remote-Photoplethysmography-master
+        # Stability gating & EMA smoothing
         self.ema = ExponentialMovingAverage(alpha=0.3)
-        self.history = deque(maxlen=30)
+        self.history = deque(maxlen=90) # Increased history to 3 seconds (30fps)
+        
+        # Display Latch logic for readability
+        self.display_latch_hr = None
+        self.display_latch_time = 0.0
+        self.latch_duration = 2.0 # Hold display steady for 2 seconds
 
     def validate(self, current_hr: float, current_time: float, sqi: float = 1.0):
         """
@@ -52,7 +57,17 @@ class PhysiologicalConsistencyChecker:
         if stable_hr is None:
             return False, smoothed_hr, "Stabilizing... (Please hold still)"
             
-        return True, stable_hr, "Valid"
+        # Display Latching (Slows down fluctuations for readability while continuous monitoring runs in background)
+        if current_time - self.display_latch_time >= self.latch_duration:
+            self.display_latch_hr = stable_hr
+            self.display_latch_time = current_time
+            
+        # If latch hasn't been set yet (first valid reading)
+        if self.display_latch_hr is None:
+            self.display_latch_hr = stable_hr
+            self.display_latch_time = current_time
+            
+        return True, self.display_latch_hr, "Valid"
 
     def get_stable_hr(self, threshold: float = 5.0):
         """Only returns HR if the recent variance is low."""
@@ -60,7 +75,7 @@ class PhysiologicalConsistencyChecker:
             return None
         recent = list(self.history)[-min(20, len(self.history)):]
         arr = np.array(recent)
-        if max(arr - np.mean(arr)) < threshold:
+        if np.max(np.abs(arr - np.mean(arr))) < threshold:
             return float(np.mean(recent))
         return None
 
