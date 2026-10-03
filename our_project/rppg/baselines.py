@@ -44,9 +44,12 @@ class CHROMMethod:
     @staticmethod
     def extract_pulse(r, g, b):
         if len(r) < 3: return np.array([])
-        r_n = r / np.mean(r)
-        g_n = g / np.mean(g)
-        b_n = b / np.mean(b)
+        r_mean, g_mean, b_mean = np.mean(r), np.mean(g), np.mean(b)
+        if r_mean < 1e-8 or g_mean < 1e-8 or b_mean < 1e-8: return np.array([])
+        
+        r_n = r / r_mean
+        g_n = g / g_mean
+        b_n = b / b_mean
         Xs = 3 * r_n - 2 * g_n
         Ys = 1.5 * r_n + g_n - 1.5 * b_n
         std_Ys = np.std(Ys)
@@ -60,9 +63,12 @@ class POSMethod:
     @staticmethod
     def extract_pulse(r, g, b):
         if len(r) < 3: return np.array([])
-        r_n = r / np.mean(r)
-        g_n = g / np.mean(g)
-        b_n = b / np.mean(b)
+        r_mean, g_mean, b_mean = np.mean(r), np.mean(g), np.mean(b)
+        if r_mean < 1e-8 or g_mean < 1e-8 or b_mean < 1e-8: return np.array([])
+        
+        r_n = r / r_mean
+        g_n = g / g_mean
+        b_n = b / b_mean
         Xs = g_n - b_n
         Ys = -2 * r_n + g_n + b_n
         std_Ys = np.std(Ys)
@@ -103,7 +109,7 @@ def estimate_hr(signal_data, fps=30.0):
     """
     Estimates heart rate in BPM using FFT with Harmonic Rejection.
     """
-    if len(signal_data) < 30:
+    if len(signal_data) < 30 or np.isnan(signal_data).any() or np.isinf(signal_data).any():
         return 0.0
         
     n = len(signal_data)
@@ -128,6 +134,9 @@ def estimate_hr(signal_data, fps=30.0):
     peak_freq = hr_freqs[peak_idx]
     max_p = hr_power[peak_idx]
     
+    if max_p < 1e-8:
+        return 0.0
+    
     # Harmonic Rejection: If peak is > 90 BPM (1.5 Hz), check for fundamental at half freq
     if peak_freq > 1.5:
         fund_target = peak_freq / 2.0
@@ -151,7 +160,7 @@ def calculate_sqi(signal_data, fps=30.0):
     Signal Quality Index based on SNR in frequency domain.
     Returns value between 0.0 and 1.0
     """
-    if len(signal_data) < 30:
+    if len(signal_data) < 30 or np.isnan(signal_data).any() or np.isinf(signal_data).any():
         return 0.0
         
     n = len(signal_data)
@@ -177,6 +186,9 @@ def calculate_sqi(signal_data, fps=30.0):
     signal_power = np.sum(hr_power[signal_mask])
     noise_power = np.sum(hr_power[~signal_mask]) + 1e-8
     
+    if noise_power <= 0 or signal_power <= 0:
+        return 0.0
+        
     snr = 10 * np.log10(signal_power / noise_power)
     snr = max(0.0, min(snr, 30.0))
     
