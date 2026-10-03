@@ -31,42 +31,26 @@ class PhysiologicalConsistencyChecker:
 
     def validate(self, current_hr: float, current_time: float, sqi: float = 1.0):
         """
-        Validates the HR based on absolute limits and temporal continuity.
-
-        Returns:
-            (is_valid, filtered_hr, reason)
+        Validates the HR and provides detailed feedback on accuracy loss due to lighting/camera.
         """
-        if current_hr < self.min_hr or current_hr > self.max_hr:
-            return False, self.last_valid_hr, "Out of absolute bounds"
-
-        if sqi < 0.3:
-            return False, self.last_valid_hr, "SQI too low"
-
-        # Outlier rejection based on rate of change
-        if self.last_valid_hr is not None and self.last_valid_time is not None:
-            time_delta = current_time - self.last_valid_time
-            if time_delta > 0:
-                change = abs(current_hr - self.last_valid_hr)
-                max_allowed_change = self.max_change_per_sec * time_delta
-
-                if change > max_allowed_change:
-                    if sqi > 0.8:
-                        direction = np.sign(current_hr - self.last_valid_hr)
-                        current_hr = self.last_valid_hr + direction * max_allowed_change
-                    else:
-                        return False, self.get_stable_hr(), "Physiologically implausible rate of change"
-
-        # Apply EMA Smoothing
+        # Always apply EMA Smoothing to prevent the value from freezing permanently
         smoothed_hr = self.ema.update(current_hr)
         self.history.append(smoothed_hr)
-        
         self.last_valid_hr = smoothed_hr
         self.last_valid_time = current_time
-        
+
+        if sqi < 0.4:
+            accuracy_loss = int((1.0 - sqi) * 100)
+            reason = f"Poor Lighting or Low Camera Quality. Output accuracy reduced by ~{accuracy_loss}%."
+            return False, smoothed_hr, reason
+
+        if current_hr < self.min_hr or current_hr > self.max_hr:
+            return False, smoothed_hr, "Out of absolute bounds"
+
         # Stability Gating
         stable_hr = self.get_stable_hr()
         if stable_hr is None:
-            return False, smoothed_hr, "Stabilizing..."
+            return False, smoothed_hr, "Stabilizing... (Please hold still)"
             
         return True, stable_hr, "Valid"
 
