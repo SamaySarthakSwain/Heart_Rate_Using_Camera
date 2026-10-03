@@ -3,7 +3,7 @@ services:
     name: heart-rate-rppg
     runtime: docker
     # Build from the Dockerfile at the repo root
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: Dockerfile
     # Render automatically sets PORT; our Dockerfile reads it via ${PORT}
     # Free plan: Oregon (US West) — change to "frankfurt" for EU
     region: oregon
