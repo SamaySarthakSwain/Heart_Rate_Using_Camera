@@ -26,13 +26,16 @@ class AdaptiveROIFusion:
         """
         # 1. Global Motion Score (0 to 1, higher is worse)
         motion_score = self.motion_analyzer.calculate_motion_score(current_landmarks)
+        self.last_motion_score = motion_score
         
         weights = {}
         total_weight = 0.0
+        avg_illum = 0.0
         
         for region, rgb in roi_rgb_means.items():
             # 2. ROI-specific Illumination Score (0 to 1, higher is better)
             illum_score = self.illum_analyzer.evaluate_roi_illumination(rgb)
+            avg_illum += illum_score
             
             # Base weight is heavily dependent on illumination
             base_weight = illum_score
@@ -56,6 +59,8 @@ class AdaptiveROIFusion:
         # Normalize weights
         for region in weights:
             weights[region] /= total_weight
+            
+        self.last_illum_score = avg_illum / max(1, len(roi_rgb_means))
             
         # Fuse RGB signals
         fused_r, fused_g, fused_b = 0.0, 0.0, 0.0

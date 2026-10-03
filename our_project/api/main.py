@@ -99,21 +99,29 @@ async def websocket_endpoint(websocket: WebSocket):
                 final_hr = None
                 reason = status
 
-            # Safe motion score extraction
-            motion_score = 0.0
-            try:
-                history = pipeline.fusion.motion_analyzer.landmark_history
-                if history:
-                    motion_score = round(float(history[-1][0][0]), 2)
-            except Exception:
-                pass
+            # Safe motion and illumination score extraction
+            motion_score = getattr(pipeline.fusion, 'last_motion_score', 0.0)
+            illum_score = getattr(pipeline.fusion, 'last_illum_score', 1.0)
+            
+            # 1. Comprehensive SQI (Blend of SNR, Illumination, and Motion Penalty)
+            # sqi from baselines is purely SNR-based (0 to 1)
+            # motion_score is 0 (good) to 1 (bad)
+            # illum_score is 0 (bad) to 1 (good)
+            comprehensive_sqi = (sqi * 0.6) + (illum_score * 0.4)
+            comprehensive_sqi = comprehensive_sqi * (1.0 - motion_score)
+            comprehensive_sqi = max(0.0, min(1.0, comprehensive_sqi))
+            
+            # 2. Explicit Error Boundary Calculation
+            # 1.0 SQI = +/- 1 BPM. 0.0 SQI = +/- 15 BPM.
+            error_boundary = int(1.0 + (1.0 - comprehensive_sqi) * 14.0)
 
             response = {
-                "hr": round(final_hr, 1) if final_hr is not None else "--",
-                "sqi": round(sqi, 2) if hr is not None else 0.0,
+                "hr": f"{round(final_hr, 1)} ± {error_boundary}" if final_hr is not None else "--",
+                "sqi": round(comprehensive_sqi, 2) if hr is not None else 0.0,
                 "status": reason,
                 "wave_value": float(raw_wave),
                 "motion_score": motion_score,
+                "error": error_boundary
             }
             await websocket.send_text(json.dumps(response))
 
