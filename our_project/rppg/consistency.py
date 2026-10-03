@@ -38,10 +38,25 @@ class PhysiologicalConsistencyChecker:
         """
         Validates the HR and provides detailed feedback on accuracy loss due to lighting/camera.
         """
-        # Always apply EMA Smoothing to prevent the value from freezing permanently
+        # 1. Enforce strict physiological rate-of-change limit BEFORE smoothing
+        # The human heart cannot physically jump 75 BPM in a fraction of a second.
+        if self.last_valid_hr is not None and self.last_valid_time is not None:
+            time_delta = current_time - self.last_valid_time
+            if 0 < time_delta < 2.0: # Only apply limit if readings are continuous
+                max_allowed_change = self.max_change_per_sec * time_delta
+                
+                # If it jumped from 75 to 150 (a 75 BPM jump), clamp it!
+                if abs(current_hr - self.last_valid_hr) > max_allowed_change:
+                    direction = np.sign(current_hr - self.last_valid_hr)
+                    # Clamp the current reading to the maximum physiologically possible change
+                    current_hr = self.last_valid_hr + direction * max_allowed_change
+
+        # 2. Always apply EMA Smoothing to prevent the value from freezing permanently
         smoothed_hr = self.ema.update(current_hr)
         self.history.append(smoothed_hr)
-        self.last_valid_hr = smoothed_hr
+        
+        # We store the *clamped* value as the raw baseline for the next frame's delta check
+        self.last_valid_hr = current_hr 
         self.last_valid_time = current_time
 
         if sqi < 0.4:

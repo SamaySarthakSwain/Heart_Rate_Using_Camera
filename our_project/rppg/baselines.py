@@ -149,8 +149,8 @@ def estimate_hr(signal_data, fps=30.0):
                 sub_max_idx = np.argmax(sub_powers)
                 sub_max_p = sub_powers[sub_max_idx]
                 
-                # If the sub-peak is at least 30% of the main peak's power, assume it's the fundamental
-                if sub_max_p >= 0.3 * max_p:
+                # If the sub-peak is at least 15% of the main peak's power, assume it's the fundamental
+                if sub_max_p >= 0.15 * max_p:
                     peak_freq = sub_freqs[sub_max_idx]
     
     return peak_freq * 60.0
