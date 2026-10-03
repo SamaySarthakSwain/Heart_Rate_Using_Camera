@@ -24,7 +24,13 @@
         <div class="card">
             <video id="video" autoplay playsinline></video>
             <canvas id="canvas" width="640" height="480"></canvas>
-            <button id="startBtn" style="padding: 10px 20px; margin-top: 20px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #2196f3; color: white;">Start Monitoring</button>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                <select id="cameraSelect" style="padding: 10px; border-radius: 8px; font-size: 16px; background: #333; color: white; border: 1px solid #555;">
+                    <option value="user">Front Camera</option>
+                    <option value="environment">Back Camera</option>
+                </select>
+                <button id="startBtn" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #2196f3; color: white;">Start Monitoring</button>
+            </div>
         </div>
 
         <div class="dashboard-row">
@@ -54,6 +60,7 @@
         const sqiDisplay = document.getElementById('sqi-display');
         const statusDisplay = document.getElementById('status-display');
         const startBtn = document.getElementById('startBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
         
         const waveCanvas = document.getElementById('waveformCanvas');
         const waveCtx = waveCanvas.getContext('2d');
@@ -94,14 +101,34 @@
 
         async function startCamera() {
             try {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                const facingMode = cameraSelect.value;
+                if (facingMode === 'user') {
+                    video.style.transform = 'scaleX(-1)';
+                } else {
+                    video.style.transform = 'scaleX(1)';
+                }
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 640, height: 480, frameRate: { ideal: 30 } } 
+                    video: { 
+                        width: 640, 
+                        height: 480, 
+                        frameRate: { ideal: 30 },
+                        facingMode: { ideal: facingMode }
+                    } 
                 });
                 video.srcObject = stream;
             } catch (err) {
                 statusDisplay.innerText = "Error accessing camera: " + err.message;
             }
         }
+
+        cameraSelect.addEventListener('change', () => {
+            if (isRunning) {
+                startCamera();
+            }
+        });
 
         function sendFrame() {
             if (!isRunning) return;
