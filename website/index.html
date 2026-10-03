@@ -3,53 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI rPPG Research Dashboard</title>
+    <title>AI Heart Rate Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; display: flex; flex-direction: column; align-items: center; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .dashboard-row { display: flex; justify-content: space-around; width: 100%; }
-        .metric { font-size: 48px; font-weight: bold; color: #00e676; }
-        .metric.poor { color: #ff3d00; }
-        h3 { margin-top: 0; color: #aaa; }
-        video { border-radius: 8px; width: 640px; height: 480px; transform: scaleX(-1); background: #000; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent: #0ea5e9;
+            --accent-glow: rgba(14, 165, 233, 0.4);
+            --success: #10b981;
+            --danger: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top, #1e293b, var(--bg-color) 80%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            font-weight: 300;
+            margin-top: 8px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 1.8fr 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-container {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            aspect-ratio: 4/3;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
         canvas { display: none; }
-        .status { margin-top: 10px; font-style: italic; color: #64b5f6; }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        select {
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: rgba(15, 23, 42, 0.8);
+            color: white;
+            border: 1px solid var(--border-color);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:hover {
+            border-color: var(--accent);
+        }
+
+        button {
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 0 15px var(--accent-glow);
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px var(--accent-glow);
+            background: #0284c7;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .metric-box {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            transition: transform 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .metric-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-title {
+            font-size: 1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: clamp(3rem, 6vw, 4.5rem);
+            font-weight: 800;
+            color: var(--success);
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .metric-value.poor {
+            color: var(--danger);
+            text-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+        }
+
+        .status-badge {
+            margin-top: 15px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(56, 189, 248, 0.1);
+            color: #38bdf8;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            text-align: center;
+        }
+
+        .wave-container {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #waveformCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Device-Agnostic AI rPPG Monitoring</h1>
-        
-        <div class="card">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas" width="640" height="480"></canvas>
-            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
-                <select id="cameraSelect" style="padding: 10px; border-radius: 8px; font-size: 16px; background: #333; color: white; border: 1px solid #555;">
-                    <option value="user">Front Camera</option>
-                    <option value="environment">Back Camera</option>
-                </select>
-                <button id="startBtn" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 8px; border: none; background: #2196f3; color: white;">Start Monitoring</button>
+        <div class="header">
+            <h1>Contactless Vitals</h1>
+            <p>Real-time heart rate estimation via AI & rPPG technology</p>
+        </div>
+
+        <div class="grid-layout">
+            <!-- Camera Section -->
+            <div class="card">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                </div>
+                <canvas id="canvas" width="640" height="480"></canvas>
+                
+                <div class="controls">
+                    <select id="cameraSelect">
+                        <option value="user">Front Camera</option>
+                        <option value="environment">Back Camera</option>
+                    </select>
+                    <button id="startBtn">Start Monitoring</button>
+                </div>
+            </div>
+
+            <!-- Metrics Section -->
+            <div class="card">
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <div class="metric-title">Heart Rate</div>
+                        <div id="hr-display" class="metric-value">--</div>
+                        <div style="color: var(--text-muted); margin-top: 5px; font-size: 0.9rem;">BPM</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-title">Signal Quality</div>
+                        <div id="sqi-display" class="metric-value" style="font-size: clamp(2.5rem, 5vw, 3.5rem);">0.00</div>
+                        <div style="color: var(--text-muted); margin-top: 5px; font-size: 0.9rem;">SQI</div>
+                    </div>
+                </div>
+                <div id="status-display" class="status-badge">Waiting to start...</div>
             </div>
         </div>
 
-        <div class="dashboard-row">
-            <div class="card">
-                <h3>Heart Rate (BPM)</h3>
-                <div id="hr-display" class="metric">--</div>
-            </div>
-            <div class="card">
-                <h3>Signal Quality (SQI)</h3>
-                <div id="sqi-display" class="metric">0.00</div>
+        <!-- Waveform Section -->
+        <div class="card">
+            <div class="metric-title" style="margin-bottom: 10px;">Pulse Waveform</div>
+            <div class="wave-container">
+                <canvas id="waveformCanvas" width="900" height="120"></canvas>
             </div>
         </div>
-        
-        <div class="card" style="margin-top: 20px;">
-            <h3>rPPG Waveform</h3>
-            <canvas id="waveformCanvas" width="900" height="150" style="background: #000; border-radius: 8px; border: 1px solid #333; display: block;"></canvas>
-        </div>
-        
-        <div id="status-display" class="status">Waiting to start...</div>
     </div>
 
     <script>
