@@ -87,7 +87,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             current_time = time.time()
-            hr, sqi, status, raw_wave = pipeline.process_frame(frame, current_time)
+            hr, sqi, status, raw_wave, motion_score_raw, illum_score_raw = pipeline.process_frame(frame, current_time)
 
             if hr is not None:
                 is_valid, final_hr, reason = consistency_checker.validate(
@@ -99,20 +99,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 final_hr = None
                 reason = status
 
-            # Safe motion and illumination score extraction
-            motion_score = getattr(pipeline.fusion, 'last_motion_score', 0.0)
-            illum_score = getattr(pipeline.fusion, 'last_illum_score', 1.0)
-            
             # 1. Comprehensive SQI (Blend of SNR, Illumination, and Motion Penalty)
-            # sqi from baselines is purely SNR-based (0 to 1)
-            # motion_score is 0 (good) to 1 (bad)
-            # illum_score is 0 (bad) to 1 (good)
-            comprehensive_sqi = (sqi * 0.6) + (illum_score * 0.4)
-            comprehensive_sqi = comprehensive_sqi * (1.0 - motion_score)
+            comprehensive_sqi = (sqi * 0.6) + (illum_score_raw * 0.4)
+            comprehensive_sqi = comprehensive_sqi * (1.0 - motion_score_raw)
             comprehensive_sqi = max(0.0, min(1.0, comprehensive_sqi))
             
             # 2. Explicit Error Boundary Calculation
-            # 1.0 SQI = +/- 1 BPM. 0.0 SQI = +/- 15 BPM.
             error_boundary = int(1.0 + (1.0 - comprehensive_sqi) * 14.0)
 
             response = {
@@ -120,7 +112,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "sqi": round(comprehensive_sqi, 2) if hr is not None else 0.0,
                 "status": reason,
                 "wave_value": float(raw_wave),
-                "motion_score": motion_score,
+                "motion_score": motion_score_raw,
                 "error": error_boundary
             }
             await websocket.send_text(json.dumps(response))
